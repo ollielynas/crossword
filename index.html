@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <!-- <link rel="stylesheet" href="./style.css"> -->
+    <title>Crossword</title>
+    <link rel="icon" href="./edit.png">
+  </head>
+
+  <body>
+<style>
+
+
+
+body {
+    background-color: #f5f5f5;
+    display: flex;
+    flex-direction: row;
+    /* space between */
+    justify-content: space-evenly;
+    /* space around */
+    align-items: center;
+    overflow-wrap: normal;
+    height: 100dvh;
+    width: 100dvw;
+}
+
+li {
+    padding: 0.5em;
+}
+.inputs {
+    padding: 0em;
+    margin: 0em;
+    width: 15em;
+    height: 15em;
+    border: 1px solid #000000;
+    gap: 0em;
+    font-size: 1em;
+    display: inline;
+    position: relative;
+  background:
+    conic-gradient(from 90deg at 1px 1px,#0000 90deg,rgb(0, 0, 0) 0) 
+    0 0/1em 1em;
+    background-origin: border-box;
+}
+
+.vertical {
+    writing-mode: vertical-rl;
+    text-orientation: upright;
+    letter-spacing: 0.20ch;
+    padding-top: 0.15ch;
+}
+
+.horizontal {
+    text-orientation: sideways;
+    padding-left: 0.48ch;
+    letter-spacing: 1ch;
+}
+
+input:disabled {
+    background-color: #49e9545e;
+}
+
+input {
+    position: absolute;
+    padding: 0em;
+    margin: 0em;
+    border: 0px solid #000000;
+    font-stretch: expanded;
+    background-color: rgba(0, 0, 0, 0.166);
+    font-family: "Courier New", Courier, monospace;
+}
+
+
+
+
+
+
+</style>
+
+  </body>
+</html>
