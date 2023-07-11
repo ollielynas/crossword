@@ -4,8 +4,8 @@
     <title>Crossword</title>
     <link rel="icon" href="./edit.png">
   
-<link rel="preload" href="./crossword-ddf4967cc161aeb6_bg.wasm" as="fetch" type="application/wasm" crossorigin="">
-<link rel="modulepreload" href="./crossword-ddf4967cc161aeb6.js"></head>
+<link rel="preload" href="/crossword-d2edebabddb8e7c8_bg.wasm" as="fetch" type="application/wasm" crossorigin="">
+<link rel="modulepreload" href="/crossword-d2edebabddb8e7c8.js"></head>
 
   <body>
 <style>
@@ -44,6 +44,10 @@ li {
     background-origin: border-box;
 }
 
+.just-tell-me-the-answer {
+    display: none;
+    position: absolute;
+}
 .vertical {
     writing-mode: vertical-rl;
     text-orientation: upright;
@@ -79,4 +83,31 @@ input {
 </style>
 
   
-<script type="module">import init from './crossword-ddf4967cc161aeb6.js';init('./crossword-ddf4967cc161aeb6_bg.wasm');</script></body></html>
+<script type="module">import init from '/crossword-d2edebabddb8e7c8.js';init('/crossword-d2edebabddb8e7c8_bg.wasm');</script><script>(function () {
+    var protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    var url = protocol + '//' + window.location.host + '/_trunk/ws';
+    var poll_interval = 5000;
+    var reload_upon_connect = () => {
+        window.setTimeout(
+            () => {
+                // when we successfully reconnect, we'll force a
+                // reload (since we presumably lost connection to
+                // trunk due to it being killed, so it will have
+                // rebuilt on restart)
+                var ws = new WebSocket(url);
+                ws.onopen = () => window.location.reload();
+                ws.onclose = reload_upon_connect;
+            },
+            poll_interval);
+    };
+
+    var ws = new WebSocket(url);
+    ws.onmessage = (ev) => {
+        const msg = JSON.parse(ev.data);
+        if (msg.reload) {
+            window.location.reload();
+        }
+    };
+    ws.onclose = reload_upon_connect;
+})()
+</script></body></html>

@@ -570,8 +570,8 @@ imports.wbg.__wbindgen_memory = function() {
     const ret = wasm.memory;
     return addHeapObject(ret);
 };
-imports.wbg.__wbindgen_closure_wrapper524 = function(arg0, arg1, arg2) {
-    const ret = makeMutClosure(arg0, arg1, 51, __wbg_adapter_26);
+imports.wbg.__wbindgen_closure_wrapper548 = function(arg0, arg1, arg2) {
+    const ret = makeMutClosure(arg0, arg1, 66, __wbg_adapter_26);
     return addHeapObject(ret);
 };
 
@@ -588,9 +588,7 @@ function __wbg_finalize_init(instance, module) {
     cachedInt32Memory0 = null;
     cachedUint8Memory0 = null;
 
-    while (true) {
     wasm.__wbindgen_start();
-
     return wasm;
 }
 
@@ -614,7 +612,7 @@ async function __wbg_init(input) {
     if (wasm !== undefined) return wasm;
 
     if (typeof input === 'undefined') {
-        input = new URL('crossword-ddf4967cc161aeb6_bg.wasm', import.meta.url);
+        input = new URL('crossword-d2edebabddb8e7c8_bg.wasm', import.meta.url);
     }
     const imports = __wbg_get_imports();
 

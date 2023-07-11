@@ -41,9 +41,11 @@ impl Word {
     fn random_unplaced(text_file: &String) -> Word {
         let mut rng = rand::thread_rng();
         let words = text_file.split("\n").collect::<Vec<&str>>();
-        let line = words.choose(&mut rng).unwrap().to_string();
-
+        let mut line = words.choose(&mut rng).unwrap().to_string();
+        line=line.to_lowercase();
+        line = line.replace(|c: char| !"abcdefghijklmnopqrstuvwxyz|".contains(c), "");
         let mut word_list = line.split("|").collect::<Vec<&str>>().iter().rev().map(|x| *x).collect::<Vec<&str>>();
+
         word_list.shuffle(&mut rng);
         let text = word_list.pop().unwrap().to_string();
         let clue = word_list.iter().take(3).map(|x| *x).collect::<Vec<&str>>().join(", ");
@@ -143,7 +145,11 @@ impl Crossword {
                 let mut invalid = false;
                 word.move_random();
                 let new_hash = word.gen_hash();
-                hashmaps[index] = new_hash.clone();
+                if hashmaps.len() <= index {
+                    hashmaps.push(new_hash.clone());
+                } else {
+                    hashmaps[index] = new_hash.clone();
+                }
                 let mut overlap = 0;
                 for pos in new_hash.keys() {
                     for (i, h) in hashmaps.iter().enumerate() {
@@ -189,12 +195,16 @@ fn main() {
     let text_file = include_str!("./output.txt").to_string();
 
 
+
     let crossword = Crossword::new(&text_file);
     panic::set_hook(Box::new(console_error_panic_hook::hook));
     sycamore::render(|cx| {
         let words = create_signal(cx, crossword.words.into_iter().enumerate().map(|x| (x.0+1,x.1)).collect::<Vec<(usize, Word)>>());
         
         view! { cx,
+        div(class="just-tell-me-the-answer") {
+            (format!("{:#?}", *words.get()))
+        }
         div {
             ol (type="1") {
             Keyed(
