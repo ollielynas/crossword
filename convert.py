@@ -17,13 +17,14 @@ for i in range(169000):
             "." in word,
             "-" in word,
             " " in word,
+            len(word) > 10,
             len(word) <= 3,
             word[0].isupper(),
             word[0].isdigit(),
             word.lower() in [a.lower() for a in parsed["synonyms"]]
             
         ]:continue
-
+    
     if word == last:
         synonyms += parsed["synonyms"]
     else:

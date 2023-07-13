@@ -1,9 +1,6 @@
-
 use std::{collections::HashMap, ops::Add};
-
 use sycamore::{prelude::*, rt::Event};
 use rand::{seq::SliceRandom, Rng};
-
 use std::panic;
 
 #[derive(Hash, Eq, PartialEq, Debug, Clone, Copy)]
@@ -73,11 +70,12 @@ impl Word {
 
     fn move_random(&mut self) {
         let mut rng = rand::thread_rng();
+        
         let orientation = [Orientation::Horizontal,Orientation::Vertical][rng.gen_range(0..2)];
         
         self.move_to(Pos {
-            x: rng.gen_range(0..15-self.text.len()) as i32,
-            y: rng.gen_range(0..15-self.text.len()) as i32,
+            x: rng.gen_range(0..15-self.text.len().min(14)) as i32,
+            y: rng.gen_range(0..15-self.text.len().min(14)) as i32,
         }, orientation);
     }
 
@@ -106,23 +104,26 @@ impl Word {
                     Orientation::Vertical => "vertical",
                 }),
                 style=format!(
-                    "left: {}%; top: {}%;width: {}%; height: {}%;",
+                    "left: {}%; top: {}%;width: {}; height: {};",
                     word.pos.x as f32*20.0/3.0,
                     word.pos.y as f32*20.0/3.0,
                     match word.orientation {
-                        Orientation::Horizontal => word.text.len() as f32*20.0/3.0,
-                        Orientation::Vertical => 20.0/3.0,
+                        Orientation::Horizontal => format!("calc({}%)", word.text.len() as f32*20.0/3.0),
+                        Orientation::Vertical => format!("{}%",20.0/3.0),
                     },
                     match word.orientation {
-                        Orientation::Horizontal => 20.0/3.0,
-                        Orientation::Vertical => word.text.len() as f32*20.0/3.0,
+                        Orientation::Horizontal => format!("{}%",20.0/3.0),
+                        Orientation::Vertical => format!("calc({}%)", word.text.len() as f32*20.0/3.0),
                     },
+
                 ),
                 bind:value=value,
 
             )
         }
 }
+
+
 
 struct Crossword {
     words: Vec<Word>,
@@ -133,71 +134,109 @@ impl Crossword {
     fn new(text_file: &String) -> Crossword {
         let mut score = 0;
         let mut crossword = Crossword {
-            words: (0..6).map(|_| Word::random_unplaced(&text_file)).collect(),
+            words: vec![],
             score,
         };
 
-        let mut hashmaps = crossword.words.iter().map(|x| x.gen_hash()).collect::<Vec<HashMap<Pos, char>>>();
-        for (index, word) in crossword.words.iter_mut().enumerate() {
-            let mut fail = 0;
-            let mut invalid_count = 0;
-            loop {
-                let mut invalid = false;
-                word.move_random();
-                let new_hash = word.gen_hash();
-                if hashmaps.len() <= index {
-                    hashmaps.push(new_hash.clone());
-                } else {
-                    hashmaps[index] = new_hash.clone();
-                }
-                let mut overlap = 0;
-                for pos in new_hash.keys() {
-                    for (i, h) in hashmaps.iter().enumerate() {
-                        if i != index {
-                            if h.contains_key(pos) {
-                                if h.get(pos).unwrap() == new_hash.get(pos).unwrap() {
-                                    overlap += 1;
-                                    score += 1;
-                                }
-                                if h.get(pos).unwrap() != new_hash.get(pos).unwrap() {
-                                    invalid = true;
-                                    invalid_count += 1;
-                                }
-                            }
-                        }
-                    }
-                }
-                if !invalid {
-                    if overlap == 0 {
-                        fail += 1;
-                    }
-                    if fail > 100 || overlap > 0 {
-                        break;
+        let mut first_word = Word::random_unplaced(&text_file);
+        first_word.move_random();
+        let mut word_hash = first_word.gen_hash();
+        crossword.words.push(first_word);
 
+        for _ in 0..7 {
+            let mut free_space_below: HashMap<Pos, i32> = HashMap::new();
+            let mut free_space = 0;
+            for x in 0..15 {
+                for y in (0..15).rev() {
+                    free_space += 1;
+                    if word_hash.contains_key(&Pos {x,y}) ||word_hash.contains_key(&Pos {x: x+1,y}) ||word_hash.contains_key(&Pos {x: x-1,y}) {
+                        free_space = 0;
                     }
-                }
-                if invalid_count > 1000 {
-                    return Crossword::new(&text_file);
+                    free_space_below.insert(Pos {x,y}, free_space);
                 }
             }
-        }
-        crossword.score = score;
+            let mut free_space_right: HashMap<Pos, i32> = HashMap::new();
+            let mut free_space = 0;
+            for y in 0..15 {
+                for x in (0..15).rev() {
+                    free_space += 1;
+                    if word_hash.contains_key(&Pos {x,y}) ||word_hash.contains_key(&Pos {x,y: y-1}) || word_hash.contains_key(&Pos {x,y: y+1})  {
+                        free_space = 0;
+                    }
+                    free_space_right.insert(Pos {x,y}, free_space);
+                }
+            }
+            let mut valid = false;
 
+            let mut new_word = Word::random_unplaced(&text_file);
+            
+            while !valid {
+                new_word = Word::random_unplaced(&text_file);
+                new_word.move_random();
+
+            for (pos, letter) in &word_hash {
+                if new_word.text.contains(*letter) {
+                    let index = new_word.text.chars().position(|x| &x==letter).unwrap();
+                    let top_pos = *pos + match new_word.orientation  {
+                        Orientation::Horizontal => Pos {x: -1*index as i32, y: 0},
+                        Orientation::Vertical => Pos {x:0,y:-1* index as i32}
+                    };
+                    let middle_pos = *pos + match new_word.orientation  {
+                        Orientation::Horizontal => Pos {x: 1, y: 0},
+                        Orientation::Vertical => Pos {x:0,y:1}
+                    };
+
+                    if match new_word.orientation {
+                        Orientation::Horizontal => &free_space_right,
+                        Orientation::Vertical => &free_space_below
+                    }.get(&top_pos).unwrap_or(&0) >= &(index as i32) &&
+                    match new_word.orientation {
+                        Orientation::Horizontal => &free_space_right,
+                        Orientation::Vertical => &free_space_below
+                    }.get(&middle_pos).unwrap_or(&0) >= &(new_word.text.len() as i32 -  index as i32 -1) 
+                    && !word_hash.contains_key(&(top_pos + match new_word.orientation  {
+                        Orientation::Horizontal => Pos {x: -1, y: 0},
+                        Orientation::Vertical => Pos {x:0,y:-1}
+                    }))
+                    && !word_hash.contains_key(&(top_pos + match new_word.orientation  {
+                        Orientation::Horizontal => Pos {x: new_word.text.len() as i32, y: 0},
+                        Orientation::Vertical => Pos {x:0,y:new_word.text.len() as i32}
+                    }))
+                    && !word_hash.contains_key(&(top_pos + match new_word.orientation  {
+                        Orientation::Horizontal => Pos {x: 1, y: 0},
+                        Orientation::Vertical => Pos {x:0,y:1}
+                    }))
+                    && !crossword.words.iter().map(|w| w.pos).collect::<Vec<Pos>>().contains(&new_word.pos)
+                    {
+                        new_word.move_to(top_pos, new_word.orientation);
+                        valid = true;
+                        break;
+                    }
+                }
+                }
+            }
+            for (key, value) in new_word.gen_hash() {
+                word_hash.insert(key, value);
+            }
+            crossword.words.push(new_word);
+        }
 
         return crossword;
+
 
     }
 }
 
 
 fn main() {
+    panic::set_hook(Box::new(console_error_panic_hook::hook));
 
     let text_file = include_str!("./output.txt").to_string();
 
 
 
     let crossword = Crossword::new(&text_file);
-    panic::set_hook(Box::new(console_error_panic_hook::hook));
+
     sycamore::render(|cx| {
         let words = create_signal(cx, crossword.words.into_iter().enumerate().map(|x| (x.0+1,x.1)).collect::<Vec<(usize, Word)>>());
         
