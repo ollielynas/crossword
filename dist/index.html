@@ -4,8 +4,8 @@
     <title>Crossword</title>
     <link rel="icon" href="./edit.png">
   
-<link rel="preload" href="./crossword-38a04fd8f1c67ac6_bg.wasm" as="fetch" type="application/wasm" crossorigin="">
-<link rel="modulepreload" href="./crossword-38a04fd8f1c67ac6.js"></head>
+<link rel="preload" href="./crossword-720fe353d2e07146_bg.wasm" as="fetch" type="application/wasm" crossorigin="">
+<link rel="modulepreload" href="./crossword-720fe353d2e07146.js"></head>
 
   <body>
 <style>
@@ -21,9 +21,12 @@ body {
     /* space around */
     align-items: center;
     overflow-wrap: normal;
-    height: 100dvh;
-    width: 100dvw;
+    height: 100vh;
+    width: 100vw;
 }
+
+
+
 
 li {
     padding: 0.5em;
@@ -36,14 +39,15 @@ li {
     border: 1px solid #000000;
     gap: 0em;
     font-size: 1em;
-    display: inline;
     position: relative;
-    overflow: hidden;
-  background:
+    overflow: clip;
+    background:
     conic-gradient(from 90deg at 1px 1px,#0000 90deg,rgb(0, 0, 0) 0) 
     0 0/1em 1em;
     background-origin: border-box;
+
 }
+
 
 .just-tell-me-the-answer {
     display: none;
@@ -77,14 +81,34 @@ input {
 }
 
 
-
+.see-ans {
+  /* stick to bottom left */
+  position: absolute;
+  left: 1em;
+  bottom: 1.4em;
+  border: 0px solid #000000;
+  padding: 0.3em;
+}
 
 
 
 </style>
-
+  <button class="see-ans" onclick="
   
-<script type="module">import init from './crossword-38a04fd8f1c67ac6.js';init('./crossword-38a04fd8f1c67ac6_bg.wasm');</script><script>(function () {
+  let elements = document.getElementsByClassName('word');
+  // loop over elements
+  for (let i = 0; i < elements.length; i++) {
+    element = elements.item(i);
+    console.log(element);
+    // get id of element
+    var id = element.getAttribute('id');
+    // set 
+    element.value = id;
+  }
+
+  ">Reveal Answers</button>
+  
+<script type="module">import init from './crossword-720fe353d2e07146.js';init('./crossword-720fe353d2e07146_bg.wasm');</script><script>(function () {
     var protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     var url = protocol + '//' + window.location.host + '/_trunk/ws';
     var poll_interval = 5000;

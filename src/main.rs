@@ -40,11 +40,10 @@ impl Word {
         let words = text_file.split("\n").collect::<Vec<&str>>();
         let mut line = words.choose(&mut rng).unwrap().to_string();
         line=line.to_lowercase();
-        line = line.replace(|c: char| !"abcdefghijklmnopqrstuvwxyz|".contains(c), "");
+        line = line.replace(|c: char| !" abcdefghijklmnopqrstuvwxyz|:".contains(c), "");
         let mut word_list = line.split("|").collect::<Vec<&str>>().iter().rev().map(|x| *x).collect::<Vec<&str>>();
-
-        word_list.shuffle(&mut rng);
         let text = word_list.pop().unwrap().to_string();
+        word_list.shuffle(&mut rng);
         let clue = word_list.iter().take(3).map(|x| *x).collect::<Vec<&str>>().join(", ");
         
         
@@ -89,20 +88,26 @@ impl Word {
     fn WordComponent<G: Html>(cx: Scope, input:(usize, Word)) -> View<G> {
         let (index, word) = input;
         let value = create_signal(cx, String::new());
+        // its ugly but it works
+        
         let text = word.text.clone();
+        let ans = text.clone();
         let length = text.clone().len();
         let disabled = create_memo(cx, move || *value.get() == text);
+        
         view! { cx,
             input(
+                id=ans,
+                num=index,
                 placeholder=format!("{}", index),
                 maxlength=length,
                 disabled=*disabled.get(),
                 class=format!(
-                "word {}",
+                "word {} num{}",
                 match &word.orientation {
                     Orientation::Horizontal => "horizontal",
                     Orientation::Vertical => "vertical",
-                }),
+                }, index),
                 style=format!(
                     "left: {}%; top: {}%;width: {}; height: {};",
                     word.pos.x as f32*20.0/3.0,
@@ -143,7 +148,7 @@ impl Crossword {
         let mut word_hash = first_word.gen_hash();
         crossword.words.push(first_word);
 
-        for _ in 0..7 {
+        for _ in 0..8 {
             let mut free_space_below: HashMap<Pos, i32> = HashMap::new();
             let mut free_space = 0;
             for x in 0..15 {
@@ -206,7 +211,11 @@ impl Crossword {
                         Orientation::Horizontal => Pos {x: 1, y: 0},
                         Orientation::Vertical => Pos {x:0,y:1}
                     }))
-                    && !crossword.words.iter().map(|w| w.pos).collect::<Vec<Pos>>().contains(&new_word.pos)
+                    && match new_word.orientation  {
+                        Orientation::Horizontal =>top_pos.x,
+                        Orientation::Vertical => top_pos.y
+                    }+ new_word.text.len() as i32 <= 15
+                    && !crossword.words.iter().map(|w| w.pos).collect::<Vec<Pos>>().contains(&top_pos)
                     {
                         new_word.move_to(top_pos, new_word.orientation);
                         valid = true;
@@ -239,23 +248,24 @@ fn main() {
 
     sycamore::render(|cx| {
         let words = create_signal(cx, crossword.words.into_iter().enumerate().map(|x| (x.0+1,x.1)).collect::<Vec<(usize, Word)>>());
-        
+        let reveal = create_signal(cx, -1);
         view! { cx,
         div(class="just-tell-me-the-answer") {
             (format!("{:#?}", *words.get()))
         }
-        div {
             ol (type="1") {
             Keyed(
             iterable=words,
-            view=|cx, x| view! { cx,
-                li {  (x.1.clue) }
-            },
             key=|x| x.1.text.clone(),
-            
+            view=|cx, x| {
+                let num = x.0;
+                view! { cx,
+                
+                li(class = format!("clue{}",x.0)) {  (x.1.clue) }
+            }},
         )
     }
-        }
+        
         div(class="inputs") {
             Keyed(
             iterable=words,
