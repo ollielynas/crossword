@@ -1,9 +1,13 @@
-use std::{collections::HashMap, ops::Add};
-use sycamore::{prelude::*, rt::Event};
+use std::{collections::HashMap, ops::Add, pin::Pin};
+use sycamore::{prelude::*, rt::{Event, JsValue}};
 use rand::{seq::SliceRandom, Rng};
+use web_sys::HtmlDocument;
 use std::panic;
+use bson::{bson, Bson};
+use serde::{Deserialize, Serialize};
+use sycamore::rt::JsCast;
 
-#[derive(Hash, Eq, PartialEq, Debug, Clone, Copy)]
+#[derive(Hash, Eq, PartialEq, Debug, Clone, Copy, Serialize, Deserialize)]
 struct Pos {
     x: i32,
     y: i32,
@@ -20,18 +24,18 @@ impl Add for Pos {
     }
 }
 
-#[derive(Hash, Eq, PartialEq, Debug, Clone, Copy)]
+#[derive(Hash, Eq, PartialEq, Debug, Clone, Copy, Serialize, Deserialize)]
 enum Orientation {
     Horizontal,
     Vertical,
 }
 
-#[derive(Hash, Eq, PartialEq, Debug, Clone)]
+#[derive(Hash, Eq, PartialEq, Debug, Clone, Serialize, Deserialize, Copy)]
 struct Word {
-    text: String,
+    text: &'static str,
     pos: Pos,
     orientation: Orientation,
-    clue: String,
+    clue: &'static str,
 }
 
 impl Word {
@@ -84,41 +88,44 @@ impl Word {
     }
 }
 
+#[derive(Prop)]
+struct Props<'a> {
+    index: &'a ReadSignal<usize>,
+    word: &'a ReadSignal<Word>,
+    current_value: &'a ReadSignal<String>,
+}
+
+
 #[component]
-    fn WordComponent<G: Html>(cx: Scope, input:(usize, Word)) -> View<G> {
-        let (index, word) = input;
-        let value = create_signal(cx, String::new());
-        // its ugly but it works
-        
-        let text = word.text.clone();
-        let ans = text.clone();
-        let length = text.clone().len();
-        let disabled = create_memo(cx, move || *value.get() == text);
-        
+fn WordComponent<'a, G: Html>(cx: Scope<'a>, props: Props<'a>) -> View<G> {
+
+        let value = create_signal(cx, "".to_string());
+
+        let disabled = create_memo(cx, move || *props.current_value.get() == props.word.get().text);
         view! { cx,
             input(
-                id=ans,
-                num=index,
-                placeholder=format!("{}", index),
-                maxlength=length,
+                id=props.word.get().text,
+                num=props.index.get(),
+                placeholder=format!("{}", props.index.get()),
+                maxlength=(props.word.get().text).len(),
                 disabled=*disabled.get(),
                 class=format!(
                 "word {} num{}",
-                match &word.orientation {
+                match props.word.get().orientation {
                     Orientation::Horizontal => "horizontal",
                     Orientation::Vertical => "vertical",
-                }, index),
+                }, props.index.get()),
                 style=format!(
                     "left: {}%; top: {}%;width: {}; height: {};",
-                    word.pos.x as f32*20.0/3.0,
-                    word.pos.y as f32*20.0/3.0,
-                    match word.orientation {
-                        Orientation::Horizontal => format!("calc({}%)", word.text.len() as f32*20.0/3.0),
+                    props.word.get().pos.x as f32*20.0/3.0,
+                    props.word.get().pos.y as f32*20.0/3.0,
+                    match props.word.get().orientation {
+                        Orientation::Horizontal => format!("calc({}%)", props.word.get().text.len() as f32*20.0/3.0),
                         Orientation::Vertical => format!("{}%",20.0/3.0),
                     },
-                    match word.orientation {
+                    match props.word.get().orientation {
                         Orientation::Horizontal => format!("{}%",20.0/3.0),
-                        Orientation::Vertical => format!("calc({}%)", word.text.len() as f32*20.0/3.0),
+                        Orientation::Vertical => format!("calc({}%)", props.word.get().text.len() as f32*20.0/3.0),
                     },
 
                 ),
@@ -128,14 +135,43 @@ impl Word {
         }
 }
 
-
-
+#[derive(Hash, Eq, PartialEq, Debug, Clone, Serialize, Deserialize)]
 struct Crossword {
     words: Vec<Word>,
     score: i32,
 }
+#[derive(Hash, Eq, PartialEq, Debug, Clone, Serialize, Deserialize)]
+struct CrosswordCookie {
+    crossword: Crossword,
+    strings: [String;9],
+}
+
+impl CrosswordCookie {
+    fn load() -> Option<CrosswordCookie> {
+        // get html documet
+        let window = match web_sys::window() {Some(a) => a, _=> {return None}};
+        let document = match window.document() {Some(a) => a, _=> {return None}};
+        let html_document:HtmlDocument = match document.dyn_into::<web_sys::HtmlDocument>() {Ok(a) => a, _=> {return None}};
+        let string = match html_document.cookie() {Ok(a) => a, _=> {return None}};
+    
+        let crossword_cookie = match bson::from_bson(bson!{string.replace("x=", "").replace(";", "")}) {Ok(a) => a, _=> {return None}};
+        // detect error
+        Some(crossword_cookie)
+    }
+
+    fn save(&self) {
+        let window = web_sys::window().unwrap();
+        let document = window.document().unwrap();
+        let html_document:HtmlDocument = document.dyn_into::<web_sys::HtmlDocument>().unwrap();
+        let string = bson::to_bson(&self).unwrap().to_string();
+        html_document.set_cookie(&format!("x={};",string)).unwrap();
+    }
+
+}
+
 
 impl Crossword {
+
     fn new(text_file: &String) -> Crossword {
         let mut score = 0;
         let mut crossword = Crossword {
@@ -237,43 +273,63 @@ impl Crossword {
 }
 
 
+
+
 fn main() {
     panic::set_hook(Box::new(console_error_panic_hook::hook));
 
     let text_file = include_str!("./output.txt").to_string();
 
+    
 
 
-    let crossword = Crossword::new(&text_file);
+    let mut crossword = Crossword::new(&text_file);
+    let mut strings = [
+        "".to_owned(),
+        "".to_owned(),"".to_owned(),
+        "".to_owned(),"".to_owned(),
+        "".to_owned(),"".to_owned(),
+        "".to_owned(),"".to_owned(),];
+    if let Some(cookie) = CrosswordCookie::load() {
+        cookie.save();
+        crossword = cookie.crossword;
+        strings = cookie.strings;
+    }
+
+    
+
 
     sycamore::render(|cx| {
-        let words = create_signal(cx, crossword.words.into_iter().enumerate().map(|x| (x.0+1,x.1)).collect::<Vec<(usize, Word)>>());
-        let reveal = create_signal(cx, -1);
+
+
+        // i know that this looks bad but it really is the best way to do it
+        let words = (0..9).map(|x| create_signal(cx, crossword.words[x].clone())).collect::<Vec<&Signal<Word>>>();
+        let values = (0..9).map(|x| create_signal(cx, strings[x].clone())).collect::<Vec<&Signal<String>>>();
+        let indexes = (0..9).map(|x| {create_signal(cx, x)}).collect::<Vec<&Signal<usize>>>();
+
         view! { cx,
-        div(class="just-tell-me-the-answer") {
-            (format!("{:#?}", *words.get()))
-        }
-            ol (type="1") {
-            Keyed(
-            iterable=words,
-            key=|x| x.1.text.clone(),
-            view=|cx, x| {
-                let num = x.0;
-                view! { cx,
-                
-                li(class = format!("clue{}",x.0)) {  (x.1.clue) }
-            }},
-        )
+            
+    ol (type="1") {
+        li(class = format!("clue")) {  (words[0].get().clue) }
+        li(class = format!("clue")) {  (words[1].get().clue) }
+        li(class = format!("clue")) {  (words[2].get().clue) }
+        li(class = format!("clue")) {  (words[3].get().clue) }
+        li(class = format!("clue")) {  (words[4].get().clue) }
+        li(class = format!("clue")) {  (words[5].get().clue) }
+        li(class = format!("clue")) {  (words[6].get().clue) }
+        li(class = format!("clue")) {  (words[7].get().clue) }
+        li(class = format!("clue")) {  (words[8].get().clue) }
     }
+        WordComponent(index=indexes[0], word=words[0], current_value=values[0])
+        WordComponent(index=indexes[1], word=words[1], current_value=values[1])
+        WordComponent(index=indexes[2], word=words[2], current_value=values[2])
+        WordComponent(index=indexes[3], word=words[3], current_value=values[3])
+        WordComponent(index=indexes[4], word=words[4], current_value=values[4])
+        WordComponent(index=indexes[5], word=words[5], current_value=values[5])
+        WordComponent(index=indexes[6], word=words[6], current_value=values[6])
+        WordComponent(index=indexes[7], word=words[7], current_value=values[7])
+        WordComponent(index=indexes[8], word=words[8], current_value=values[8])
+            
         
-        div(class="inputs") {
-            Keyed(
-            iterable=words,
-            view=|cx, x| view! { cx,
-                WordComponent(x)
-            },
-            key=|x| x.1.text.clone(),
-        )
-        }
     }});
 }

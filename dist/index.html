@@ -4,8 +4,8 @@
     <title>Crossword</title>
     <link rel="icon" href="./edit.png">
   
-<link rel="preload" href="./crossword-720fe353d2e07146_bg.wasm" as="fetch" type="application/wasm" crossorigin="">
-<link rel="modulepreload" href="./crossword-720fe353d2e07146.js"></head>
+<link rel="preload" href="/crossword-720fe353d2e07146_bg.wasm" as="fetch" type="application/wasm" crossorigin="">
+<link rel="modulepreload" href="/crossword-720fe353d2e07146.js"></head>
 
   <body>
 <style>
@@ -108,7 +108,7 @@ input {
 
   ">Reveal Answers</button>
   
-<script type="module">import init from './crossword-720fe353d2e07146.js';init('./crossword-720fe353d2e07146_bg.wasm');</script><script>(function () {
+<script type="module">import init from '/crossword-720fe353d2e07146.js';init('/crossword-720fe353d2e07146_bg.wasm');</script><script>(function () {
     var protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     var url = protocol + '//' + window.location.host + '/_trunk/ws';
     var poll_interval = 5000;
